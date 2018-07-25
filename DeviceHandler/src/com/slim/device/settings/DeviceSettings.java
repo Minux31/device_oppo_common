@@ -28,6 +28,10 @@ import android.preference.TwoStatePreference;
 import com.slim.device.KernelControl;
 import com.slim.device.R;
 import com.slim.device.util.FileUtils;
+import android.util.Log;
+import android.text.TextUtils;
+import android.provider.Settings;
+
 
 public class DeviceSettings extends PreferenceActivity
         implements OnPreferenceChangeListener {
@@ -36,14 +40,14 @@ public class DeviceSettings extends PreferenceActivity
     public static final String KEY_DCI_SWITCH = "dci";
     private static final String KEY_CATEGORY_GRAPHICS = "graphics";
     public static final String SLIDER_SWAP_NODE = "/proc/s1302/key_rep";
-    public static final String KEYCODE_SLIDER_TOP = "/proc/tri-state-key/keyCode_top";
-    public static final String KEYCODE_SLIDER_MIDDLE = "/proc/tri-state-key/keyCode_middle";
-    public static final String KEYCODE_SLIDER_BOTTOM = "/proc/tri-state-key/keyCode_bottom";
-
+    public static final String KEYCODE_SLIDER_TOP = "slider_top";
+    public static final String KEYCODE_SLIDER_MIDDLE = "slider_middle";
+    public static final String KEYCODE_SLIDER_BOTTOM = "slider_bottom";
+    public static final String BUTTON_EXTRA_KEY_MAPPING = "/sys/devices/virtual/switch/tri-state-key/state";
     private SwitchPreference mSliderSwap;
-    private ListPreference mSliderTop;
-    private ListPreference mSliderMiddle;
-    private ListPreference mSliderBottom;
+    private ListPreference mSliderModeTop;
+    private ListPreference mSliderModeCenter;
+    private ListPreference mSliderModeBottom;
     private TwoStatePreference mSRGBModeSwitch;
     private TwoStatePreference mDCIModeSwitch;
 
@@ -55,15 +59,26 @@ public class DeviceSettings extends PreferenceActivity
         mSliderSwap = (SwitchPreference) findPreference("button_swap");
         mSliderSwap.setOnPreferenceChangeListener(this);
 
-        mSliderTop = (ListPreference) findPreference("keycode_top_position");
-        mSliderTop.setOnPreferenceChangeListener(this);
+        mSliderModeTop = (ListPreference) findPreference(KEYCODE_SLIDER_TOP);
+        mSliderModeTop.setOnPreferenceChangeListener(this);
+        int sliderModeTop = getSliderAction(0);
+        int valueIndex = mSliderModeTop.findIndexOfValue(String.valueOf(sliderModeTop));
+        mSliderModeTop.setValueIndex(valueIndex);
+        mSliderModeTop.setSummary(mSliderModeTop.getEntries()[valueIndex]);
 
-        mSliderMiddle = (ListPreference) findPreference("keycode_middle_position");
-        mSliderMiddle.setOnPreferenceChangeListener(this);
+        mSliderModeCenter = (ListPreference) findPreference(KEYCODE_SLIDER_MIDDLE);
+        mSliderModeCenter.setOnPreferenceChangeListener(this);
+        int sliderModeCenter = getSliderAction(1);
+        valueIndex = mSliderModeCenter.findIndexOfValue(String.valueOf(sliderModeCenter));
+        mSliderModeCenter.setValueIndex(valueIndex);
+        mSliderModeCenter.setSummary(mSliderModeCenter.getEntries()[valueIndex]);
 
-        mSliderBottom = (ListPreference) findPreference("keycode_bottom_position");
-        mSliderBottom.setOnPreferenceChangeListener(this);
-
+        mSliderModeBottom = (ListPreference) findPreference(KEYCODE_SLIDER_BOTTOM);
+        mSliderModeBottom.setOnPreferenceChangeListener(this);
+        int sliderModeBottom = getSliderAction(2);
+        valueIndex = mSliderModeBottom.findIndexOfValue(String.valueOf(sliderModeBottom));
+        mSliderModeBottom.setValueIndex(valueIndex);
+        mSliderModeBottom.setSummary(mSliderModeBottom.getEntries()[valueIndex]);
         mSRGBModeSwitch = (TwoStatePreference) findPreference(KEY_SRGB_SWITCH);
         mSRGBModeSwitch.setEnabled(SRGBModeSwitch.isSupported());
         mSRGBModeSwitch.setChecked(SRGBModeSwitch.isCurrentlyEnabled(this));
@@ -85,38 +100,78 @@ public class DeviceSettings extends PreferenceActivity
         }
     }
 
-    @Override
+
+
+@Override
     public boolean onPreferenceChange(Preference preference, Object newValue) {
-        final String file;
-        if (preference == mSliderTop) {
-            file = KEYCODE_SLIDER_TOP;
-        } else if (preference == mSliderMiddle) {
-            file = KEYCODE_SLIDER_MIDDLE;
-        } else if (preference == mSliderBottom) {
-            file = KEYCODE_SLIDER_BOTTOM;
-        } else if (preference == mSliderSwap) {
-            Boolean value = (Boolean) newValue;
-            FileUtils.writeLine(KernelControl.SLIDER_SWAP_NODE, value ? "1" : "0");
-            return true;
-        } else {
-            return false;
+
+
+
+        if (preference == mSliderSwap) {
+           Boolean value = (Boolean) newValue;
+          FileUtils.writeLine(KernelControl.SLIDER_SWAP_NODE, value ? "1" : "0");
+         }
+
+        if (preference == mSliderModeTop) {
+            String value = (String) newValue;
+            int sliderMode = Integer.valueOf(value);
+            setSliderAction(0, sliderMode);
+            int valueIndex = mSliderModeTop.findIndexOfValue(value);
+            mSliderModeTop.setSummary(mSliderModeTop.getEntries()[valueIndex]);
         }
-
-        FileUtils.writeLine(file, (String) newValue);
-        setSummary((ListPreference) preference, file);
-
+        if (preference == mSliderModeCenter) {
+            String value = (String) newValue;
+            int sliderMode = Integer.valueOf(value);
+            setSliderAction(1, sliderMode);
+            int valueIndex = mSliderModeCenter.findIndexOfValue(value);
+            mSliderModeCenter.setSummary(mSliderModeCenter.getEntries()[valueIndex]);
+        }
+        if (preference == mSliderModeBottom) {
+            String value = (String) newValue;
+            int sliderMode = Integer.valueOf(value);
+            setSliderAction(2, sliderMode);
+            int valueIndex = mSliderModeBottom.findIndexOfValue(value);
+            mSliderModeBottom.setSummary(mSliderModeBottom.getEntries()[valueIndex]);
+        }
         return true;
+}
+
+    private int getSliderAction(int position) {
+        String value = Settings.System.getString(getContentResolver(),
+                    BUTTON_EXTRA_KEY_MAPPING);
+        final String defaultValue = "5,3,0";
+
+        if (value == null) {
+            value = defaultValue;
+        } else if (value.indexOf(",") == -1) {
+            value = defaultValue;
+        }
+        try {
+            String[] parts = value.split(",");
+            return Integer.valueOf(parts[position]);
+        } catch (Exception e) {
+        }
+        return 0;
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
+    private void setSliderAction(int position, int action) {
+        String value = Settings.System.getString(getContentResolver(),
+                    BUTTON_EXTRA_KEY_MAPPING);
+        final String defaultValue = "5,3,0";
 
-        // Remove padding around the listview
-            getListView().setPadding(0, 0, 0, 0);
-
-        setSummary(mSliderTop, KEYCODE_SLIDER_TOP);
-        setSummary(mSliderMiddle, KEYCODE_SLIDER_MIDDLE);
-        setSummary(mSliderBottom, KEYCODE_SLIDER_BOTTOM);
-    }
+        if (value == null) {
+            value = defaultValue;
+        } else if (value.indexOf(",") == -1) {
+            value = defaultValue;
+        }
+        try {
+            String[] parts = value.split(",");
+            parts[position] = String.valueOf(action);
+            String newValue = TextUtils.join(",", parts);
+            Settings.System.putString(getContentResolver(),
+                    BUTTON_EXTRA_KEY_MAPPING, newValue);
+            Log.d("maxwen", newValue);
+        } catch (Exception e) {
+        }
+}
 }
