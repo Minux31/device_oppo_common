@@ -16,25 +16,36 @@
 
 package com.slim.device.settings;
 
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.content.res.Resources;
+import android.content.Intent;
 import android.os.Bundle;
-import android.preference.ListPreference;
-import android.preference.Preference;
 import android.preference.Preference.OnPreferenceChangeListener;
-import android.preference.PreferenceActivity;
 import android.preference.SwitchPreference;
 import com.slim.device.SRGBModeSwitch;
 import com.slim.device.DCIModeSwitch;
-import android.preference.TwoStatePreference;
 import com.slim.device.KernelControl;
 import com.slim.device.R;
 import com.slim.device.util.FileUtils;
 import android.util.Log;
 import android.text.TextUtils;
 import android.provider.Settings;
+import android.support.v14.preference.PreferenceFragment;
+import android.support.v7.preference.ListPreference;
+import android.support.v7.preference.Preference;
+import android.support.v7.preference.PreferenceCategory;
+import android.support.v7.preference.PreferenceScreen;
+import android.support.v7.preference.TwoStatePreference;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.ListView;
 
 
-public class DeviceSettings extends PreferenceActivity
-        implements OnPreferenceChangeListener {
+public class DeviceSettings extends PreferenceFragment
+        implements Preference.OnPreferenceChangeListener {
 
     public static final String KEY_SRGB_SWITCH = "srgb";
     public static final String KEY_DCI_SWITCH = "dci";
@@ -44,7 +55,10 @@ public class DeviceSettings extends PreferenceActivity
     public static final String KEYCODE_SLIDER_MIDDLE = "slider_middle";
     public static final String KEYCODE_SLIDER_BOTTOM = "slider_bottom";
     public static final String BUTTON_EXTRA_KEY_MAPPING = "/sys/devices/virtual/switch/tri-state-key/state";
-    private SwitchPreference mSliderSwap;
+    public static final String SLIDER_DEFAULT_VALUE = "4,2,0";
+
+
+    private TwoStatePreference mSliderSwap;
     private ListPreference mSliderModeTop;
     private ListPreference mSliderModeCenter;
     private ListPreference mSliderModeBottom;
@@ -52,11 +66,10 @@ public class DeviceSettings extends PreferenceActivity
     private TwoStatePreference mDCIModeSwitch;
 
 @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        addPreferencesFromResource(R.xml.main);
+        public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
+        setPreferencesFromResource(R.xml.main, rootKey);
 
-        mSliderSwap = (SwitchPreference) findPreference("button_swap");
+        mSliderSwap = (TwoStatePreference) findPreference("button_swap");
         mSliderSwap.setOnPreferenceChangeListener(this);
 
         mSliderModeTop = (ListPreference) findPreference(KEYCODE_SLIDER_TOP);
@@ -79,14 +92,15 @@ public class DeviceSettings extends PreferenceActivity
         valueIndex = mSliderModeBottom.findIndexOfValue(String.valueOf(sliderModeBottom));
         mSliderModeBottom.setValueIndex(valueIndex);
         mSliderModeBottom.setSummary(mSliderModeBottom.getEntries()[valueIndex]);
+
         mSRGBModeSwitch = (TwoStatePreference) findPreference(KEY_SRGB_SWITCH);
         mSRGBModeSwitch.setEnabled(SRGBModeSwitch.isSupported());
-        mSRGBModeSwitch.setChecked(SRGBModeSwitch.isCurrentlyEnabled(this));
+        mSRGBModeSwitch.setChecked(SRGBModeSwitch.isCurrentlyEnabled(this.getContext()));
         mSRGBModeSwitch.setOnPreferenceChangeListener(new SRGBModeSwitch());
 
         mDCIModeSwitch = (TwoStatePreference) findPreference(KEY_DCI_SWITCH);
         mDCIModeSwitch.setEnabled(DCIModeSwitch.isSupported());
-        mDCIModeSwitch.setChecked(DCIModeSwitch.isCurrentlyEnabled(this));
+        mDCIModeSwitch.setChecked(DCIModeSwitch.isCurrentlyEnabled(this.getContext()));
         mDCIModeSwitch.setOnPreferenceChangeListener(new DCIModeSwitch());
 
 
@@ -106,7 +120,6 @@ public class DeviceSettings extends PreferenceActivity
     public boolean onPreferenceChange(Preference preference, Object newValue) {
 
 
-
         if (preference == mSliderSwap) {
            Boolean value = (Boolean) newValue;
           FileUtils.writeLine(KernelControl.SLIDER_SWAP_NODE, value ? "1" : "0");
@@ -118,15 +131,13 @@ public class DeviceSettings extends PreferenceActivity
             setSliderAction(0, sliderMode);
             int valueIndex = mSliderModeTop.findIndexOfValue(value);
             mSliderModeTop.setSummary(mSliderModeTop.getEntries()[valueIndex]);
-        }
-        if (preference == mSliderModeCenter) {
+        } else if (preference == mSliderModeCenter) {
             String value = (String) newValue;
             int sliderMode = Integer.valueOf(value);
             setSliderAction(1, sliderMode);
             int valueIndex = mSliderModeCenter.findIndexOfValue(value);
             mSliderModeCenter.setSummary(mSliderModeCenter.getEntries()[valueIndex]);
-        }
-        if (preference == mSliderModeBottom) {
+        } else if (preference == mSliderModeBottom) {
             String value = (String) newValue;
             int sliderMode = Integer.valueOf(value);
             setSliderAction(2, sliderMode);
@@ -137,9 +148,9 @@ public class DeviceSettings extends PreferenceActivity
 }
 
     private int getSliderAction(int position) {
-        String value = Settings.System.getString(getContentResolver(),
+        String value = Settings.System.getString(getContext().getContentResolver(),
                     BUTTON_EXTRA_KEY_MAPPING);
-        final String defaultValue = "5,3,0";
+        final String defaultValue = SLIDER_DEFAULT_VALUE;
 
         if (value == null) {
             value = defaultValue;
@@ -155,9 +166,9 @@ public class DeviceSettings extends PreferenceActivity
     }
 
     private void setSliderAction(int position, int action) {
-        String value = Settings.System.getString(getContentResolver(),
+        String value = Settings.System.getString(getContext().getContentResolver(),
                     BUTTON_EXTRA_KEY_MAPPING);
-        final String defaultValue = "5,3,0";
+        final String defaultValue = SLIDER_DEFAULT_VALUE;
 
         if (value == null) {
             value = defaultValue;
@@ -168,10 +179,9 @@ public class DeviceSettings extends PreferenceActivity
             String[] parts = value.split(",");
             parts[position] = String.valueOf(action);
             String newValue = TextUtils.join(",", parts);
-            Settings.System.putString(getContentResolver(),
+            Settings.System.putString(getContext().getContentResolver(),
                     BUTTON_EXTRA_KEY_MAPPING, newValue);
-            Log.d("maxwen", newValue);
         } catch (Exception e) {
-        }
-}
+     }
+  }
 }

@@ -170,26 +170,7 @@ public class KeyHandler implements DeviceKeyHandler {
                         doHapticFeedback();
                 break;
 
-
-
-
-            case KEYCODE_SLIDER_TOP:
-            if (DEBUG) Log.i(TAG, "KEYCODE_SLIDER_TOP");
-            mGestureWakeLock.acquire(GESTURE_WAKELOCK_DURATION);
-            doHandleSliderAction(0);
-            break;
-        case KEYCODE_SLIDER_MIDDLE:
-            if (DEBUG) Log.i(TAG, "KEYCODE_SLIDER_MIDDLE");
-            mGestureWakeLock.acquire(GESTURE_WAKELOCK_DURATION);
-            doHandleSliderAction(1);
-            break;
-        case KEYCODE_SLIDER_BOTTOM:
-            if (DEBUG) Log.i(TAG, "KEYCODE_SLIDER_BOTTOM");
-            mGestureWakeLock.acquire(GESTURE_WAKELOCK_DURATION);
-            doHandleSliderAction(2);
-            break;
-
-            }
+    }
 
             if (action == null || action != null && action.equals(ActionConstants.ACTION_NULL)) {
                 return;
@@ -236,6 +217,20 @@ public class KeyHandler implements DeviceKeyHandler {
                 processEvent(event);
             } else if (isSliderModeSupported) {
             if (DEBUG) Log.i(TAG, "scanCode=" + event.getScanCode());
+           switch(event.getScanCode()) {
+            case KEYCODE_SLIDER_TOP:
+            if (DEBUG) Log.i(TAG, "KEYCODE_SLIDER_TOP");
+            doHandleSliderAction(0);
+            return true;
+        case KEYCODE_SLIDER_MIDDLE:
+            if (DEBUG) Log.i(TAG, "KEYCODE_SLIDER_MIDDLE");
+            doHandleSliderAction(1);
+            return true;
+        case KEYCODE_SLIDER_BOTTOM:
+            if (DEBUG) Log.i(TAG, "KEYCODE_SLIDER_BOTTOM");
+            doHandleSliderAction(2);
+            return true;
+    }
             mEventHandler.removeMessages(GESTURE_REQUEST);
             mEventHandler.sendMessage(msg);
         } else {
@@ -293,7 +288,7 @@ private int getSliderAction(int position) {
         String value = Settings.System.getStringForUser(mContext.getContentResolver(),
                     DeviceSettings.BUTTON_EXTRA_KEY_MAPPING,
                     UserHandle.USER_CURRENT);
-        final String defaultValue = "5,3,0";
+        final String defaultValue = DeviceSettings.SLIDER_DEFAULT_VALUE;
 
         if (value == null) {
             value = defaultValue;
