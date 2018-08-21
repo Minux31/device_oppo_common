@@ -34,7 +34,7 @@ LOCAL_CERTIFICATE := platform
 LOCAL_PRIVILEGED_MODULE := true
 LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/res
 LOCAL_USE_AAPT2 := true
-
+LOCAL_SDK_VERSION := current 
 
 package_resource_overlays := $(strip \
     $(wildcard $(foreach dir, $(PRODUCT_PACKAGE_OVERLAYS), \
@@ -47,10 +47,8 @@ LOCAL_RESOURCE_DIR := $(package_resource_overlays) $(LOCAL_RESOURCE_DIR)
 
 LOCAL_PROGUARD_ENABLED := disabled
 LOCAL_DEX_PREOPT := false
-LOCAL_JAVA_LIBRARIES := telephony-common
 LOCAL_MODULE_PATH := $(TARGET_OUT)/app
 
-include frameworks/base/packages/SettingsLib/common.mk
 
 include $(BUILD_PACKAGE)
 

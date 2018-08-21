@@ -30,7 +30,7 @@ import android.util.Log;
 
 import com.slim.device.R;
 
-import com.android.internal.util.aospextended.AppHelper;
+import com.slim.device.AppHelper;
 
 import java.util.ArrayList;
 

@@ -40,7 +40,6 @@
 
          <activity
             android:name=".settings.DeviceSettingsActivity"
-            android:theme="@style/AppTheme"
             android:label="@string/device_settings"
             android:launchMode="singleTask" >  
             <intent-filter>
